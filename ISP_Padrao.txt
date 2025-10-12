@@ -28,8 +28,7 @@ add address=192.168.0.1/24 interface=ether1 network=192.168.0.0
 /ip dns
 set allow-remote-requests=yes servers=8.8.8.8
 /ip firewall nat
-add action=src-nat chain=srcnat src-address=192.168.0.0/24 to-addresses=\
-    201.67.20.65
+add action=src-nat chain=srcnat src-address=192.168.0.0/24 to-addresses=201.67.20.65 out-interface=pppoe-out1
 add action=src-nat chain=srcnat out-interface=pppoe-out1 src-address=\
     100.64.100.0/24 to-addresses=201.67.20.65
 /ppp secret
