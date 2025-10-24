@@ -1,0 +1,53 @@
+
+
+🧩 Exemplo PPPoE Relay no CSR1000v (modo bridge-domain)
+
+conf t
+ip routing   ! Necessário para o relay funcionar
+
+! Bridge-domain para VLAN 10
+bridge-domain 10
+
+! Porta de acesso do cliente
+interface GigabitEthernet1
+ no ip address
+ service instance 10 ethernet
+  encapsulation untagged
+  bridge-domain 10
+ exit
+
+! Porta de uplink para AC/BRAS
+interface GigabitEthernet2
+ no ip address
+ service instance 10 ethernet
+  encapsulation untagged
+  bridge-domain 10
+ exit
+
+! Interface BDI para a VLAN 10
+interface BDI10
+ ip address 192.168.10.1 255.255.255.0
+ no shutdown
+
+! Ativa PPPoE Relay
+pppoe enable BDI10
+pppoe-relay set interface BDI10
+pppoe-relay group global
+
+⚙️ Explicação:
+Comando	Função
+pppoe enable BDI10	Ativa o PPPoE na interface de camada 3 da bridge
+pppoe-relay set interface BDI10	Define a interface que receberá e retransmitirá pacotes PPPoE
+pppoe-relay group global	Ativa o relay para todo o tráfego PPPoE dentro do grupo global
+🔹 Observações importantes
+
+    Clientes na VLAN 10 → enviam PADI (Discovery) → CSR1000v recebe na BDI → encaminha para o AC/BRAS.
+
+    CSR1000v funciona como um relay, não como servidor PPPoE.
+
+    Não precisa configurar IP nas portas físicas do switch — apenas na BDI.
+
+    Se tiver múltiplas VLANs de clientes, crie uma BDI por VLAN e ative pppoe enable e pppoe-relay em cada uma.
+
+Se você quiser, posso montar um diagrama de topologia simples mostrando o CSR1000v funcionando como switch L2 com PPPoE relay, para visualizar melhor como o tráfego flui. Quer que eu faça?
+
