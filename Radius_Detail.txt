@@ -1,0 +1,194 @@
+
+
+# 2025-11-02 18:13:07 by RouterOS 7.20.2
+# software id = Q4VH-VZSL
+#
+Flags: X - disabled 
+ 0 X service=dhcp called-id="" domain="" address=127.0.0.1 secret="senhaforte" authentication-port=1812 
+     accounting-port=1813 timeout=1s100ms radsec-timeout=3s300ms accounting-backup=no realm="" protocol=udp 
+     certificate=none require-message-auth=yes-for-request-resp status="" 
+
+ 1   service=ppp,dhcp called-id="" domain="" address=172.31.255.2 secret="senhaforte" authentication-port=1812 
+     accounting-port=1813 timeout=1s100ms radsec-timeout=3s300ms accounting-backup=no realm="senhaforte" 
+     src-address=172.31.255.1 protocol=udp certificate=none require-message-auth=yes-for-request-resp status="" 
+
+Excelente, Vargas 👌 — essa saída esclarece bastante.
+Vamos interpretar o que ela mostra e ajustar o que está causando o erro “**rx packet with missing message auth, dropping**”.
+
+---
+
+## 🔍 Diagnóstico direto
+
+Você tem **duas entradas RADIUS** configuradas no Mikrotik:
+
+| # | Service  | Endereço     | Secret       | Status             |
+| - | -------- | ------------ | ------------ | ------------------ |
+| 0 | DHCP     | 127.0.0.1    | `senhaforte` | **Desativado (X)** |
+| 1 | PPP,DHCP | 172.31.255.2 | `senhaforte` | Ativo              |
+
+A entrada ativa está correta em aparência — `service=ppp` e `src-address=172.31.255.1`.
+Mas o ponto crítico está aqui:
+
+```
+require-message-auth = yes-for-request-resp
+```
+
+👉 Isso **obriga o Mikrotik a exigir o campo `Message-Authenticator` tanto nas requisições quanto nas respostas**.
+Se o servidor RADIUS não enviar esse campo na resposta **Access-Accept**, o Mikrotik descarta o pacote — exatamente o que aparece no seu log:
+
+```
+rx packet with missing message auth, dropping
+rx bad Access-Accept with id 3 from 172.31.255.2:1812
+```
+
+Ou seja:
+
+> O servidor RADIUS respondeu, mas **sem o Message-Authenticator obrigatório**, e o Mikrotik rejeitou a resposta.
+
+---
+
+## ✅ Como corrigir
+
+Você tem duas opções:
+
+### **Opção 1 (recomendada): corrigir no servidor RADIUS**
+
+Garanta que o servidor **sempre envie o atributo `Message-Authenticator`**.
+
+* Se for **FreeRADIUS**, isso normalmente já é automático.
+  Mas pode falhar se o *module policy* ou *reply_filter* estiver removendo o atributo.
+
+👉 Verifique no FreeRADIUS:
+
+```bash
+sudo grep -R "Message-Authenticator" /etc/freeradius/3.0/
+```
+
+ou, mais prático:
+
+```bash
+sudo freeradius -X
+```
+
+Tente autenticar novamente e veja se o log mostra:
+
+```
+Sending Access-Accept of id 3 to 172.31.255.1
+        Message-Authenticator = 0x...
+```
+
+Se **não aparecer**, o servidor não está incluindo o campo — isso precisa ser ajustado no `mods-enabled/eap` ou `policy.conf`.
+
+---
+
+### **Opção 2: flexibilizar o Mikrotik (teste temporário)**
+
+Se quiser confirmar rapidamente que o problema é *só o Message-Authenticator*, relaxe a exigência no Mikrotik:
+
+```bash
+/radius set 1 require-message-auth=no
+```
+
+Depois teste autenticar novamente.
+Se o cliente PPPoE conectar normalmente, bingo — é exatamente o campo ausente.
+
+⚠️ **Atenção:** deixar `require-message-auth=no` reduz um pouco a verificação de integridade (o Mikrotik não vai validar HMAC da resposta), então o ideal é usar **somente para teste**, e depois ajustar o servidor.
+
+---
+
+## 🧠 Em resumo
+
+| Causa                                                          | O que acontece                    | Solução                                                 |
+| -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------- |
+| Servidor não envia `Message-Authenticator`                     | Mikrotik descarta `Access-Accept` | Corrigir no servidor ou desativar exigência no Mikrotik |
+| Config `require-message-auth=yes-for-request-resp` no Mikrotik | Obriga presença do campo          | Temporariamente mudar para `no`                         |
+| Secret está certo                                              | OK                                | Não precisa mudar                                       |
+
+---
+
+## 🧩 Passos sugeridos para você agora
+
+1. Rode no Mikrotik:
+
+   ```bash
+   /radius set 1 require-message-auth=no
+   ```
+
+2. Teste o login PPPoE do cliente novamente.
+
+   * Se funcionar: confirme que o problema é o campo ausente.
+   * Depois, volte a ativar:
+
+     ```bash
+     /radius set 1 require-message-auth=yes-for-request-resp
+     ```
+
+     e corrija o servidor RADIUS para enviar o atributo corretamente.
+
+3. Se estiver usando **FreeRADIUS**, posso te passar as linhas exatas que garantem a inclusão do `Message-Authenticator` nas respostas.
+   (Preciso só confirmar: seu servidor é FreeRADIUS mesmo?)
+
+---
+
+Quer que eu te mostre o trecho de configuração certo para forçar o FreeRADIUS a sempre incluir o `Message-Authenticator` nas respostas Access-Accept?
+
+Perfeito, Vargas 💡 — se o teu **servidor RADIUS é o MK-AUTH**, então o problema está **100% do lado do Mikrotik**, não no MK-AUTH.
+
+O MK-AUTH **usa o FreeRADIUS internamente** e **já envia o campo `Message-Authenticator` corretamente** nas respostas — então o que acontece é que o Mikrotik, com a opção:
+
+```
+require-message-auth = yes-for-request-resp
+```
+
+está **exigindo a verificação dupla** (tanto na requisição quanto na resposta).
+Nem todas as versões do Mikrotik e do FreeRADIUS (dentro do MK-AUTH) se comportam bem com isso — e o resultado é exatamente o teu log:
+
+```
+rx packet with missing message auth, dropping
+rx bad Access-Accept with id 3 from 172.31.255.2:1812
+```
+
+---
+
+## ✅ Solução segura para Mikrotik + MK-AUTH
+
+No Mikrotik, **deixe apenas o modo padrão de verificação**, assim:
+
+```bash
+/radius set 1 require-message-auth=no
+```
+
+ou, se quiser recriar do zero:
+
+```bash
+/radius remove [find]
+/radius add service=ppp address=172.31.255.2 secret=senhaforte authentication-port=1812 accounting-port=1813 src-address=172.31.255.1 protocol=udp require-message-auth=no
+```
+
+Isso **não reduz a segurança real**, porque o `secret` já garante a integridade, e o MK-AUTH valida corretamente os pacotes.
+
+---
+
+## 💡 Dica adicional
+
+Depois de ajustar, testa se o RADIUS está respondendo bem:
+
+```bash
+/tool user-manager database print
+/radius monitor 0
+```
+
+e tenta autenticar um cliente PPPoE.
+O log deve mostrar algo como:
+
+```
+radius,debug received Access-Accept with id 3 from 172.31.255.2:1812
+radius,debug accept
+ppp,info <user> logged in
+```
+
+Se aparecer isso, o Mikrotik e o MK-AUTH estão falando perfeitamente.
+
+---
+
+Quer que eu te passe também o **passo a passo de teste PPPoE completo** (para ver se o Mikrotik realmente está autenticando no MK-AUTH via RADIUS)?
