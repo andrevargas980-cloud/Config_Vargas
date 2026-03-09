@@ -1,4 +1,4 @@
-# Manual NCX — MikroTik NAT-safe com Tailscale + WireGuard (L2)
+# Manual NCX — MikroTik NAT-safe com Tailscale + WireGuard + EoIP (L2)
 
 ## Objetivo
 Conectar duas pontas MikroTik atrás de NAT sem IP público fixo:
