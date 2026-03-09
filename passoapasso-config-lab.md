@@ -188,3 +188,185 @@ Parâmetros:
 Este laboratório é **didático** e tem como objetivo ensinar os conceitos fundamentais de um provedor real.
 
 Não deve ser usado diretamente em produção sem ajustes de segurança e capacidade.
+
+# Aula 02 — Integração com Sistema de Gestão, Planos e Financeiro
+
+## Objetivo da aula
+Nesta etapa o laboratório evolui de “rede funcionando” para um **provedor operacional**, integrando:
+- Autenticação de clientes com o sistema de gestão
+- Criação de **planos de velocidade**
+- Associação de clientes aos planos
+- Testes de velocidade
+- Início da estrutura financeira (contas e boletos)
+
+---
+
+## Pré-requisitos
+- Aula 01 concluída
+- PPPoE Server funcionando no MikroTik
+- Clientes (Luca, Débora, Isabela) conectando via PPPoE
+- Acesso ao **sistema de gestão do provedor** (web)
+
+---
+
+## Etapa 1 — Acesso e validação do sistema de gestão
+1. Acessar o painel web do sistema de gestão
+2. Validar:
+   - Login funcionando
+   - Dashboard carregando
+   - Comunicação com a VM ativa
+
+**Checklist**
+- [ ] Sistema acessível via navegador
+- [ ] Dashboard exibindo clientes
+- [ ] Sessão estável (sem erros de login)
+
+---
+
+## Etapa 2 — Criação dos planos de internet
+1. Acessar: **Controle → Planos / Produtos**
+2. Criar planos de teste:
+   - **Plano 100 Mbps**
+     - Velocidade: 100 Mbps
+     - Valor: R$ 99,00
+   - **Plano 600 Mbps**
+     - Velocidade: 600 Mbps
+     - Valor: R$ 299,00
+3. Salvar os planos
+
+> Obs: nesta etapa os planos **ainda não limitam a banda automaticamente**, pois a integração com o MikroTik ainda está sendo ajustada.
+
+**Checklist**
+- [ ] Plano 100 Mbps criado
+- [ ] Plano 600 Mbps criado
+- [ ] Planos visíveis no sistema
+
+---
+
+## Etapa 3 — Cadastro de clientes no sistema
+Criar clientes no sistema de gestão (nomes de teste):
+
+### Clientes
+- Luca
+- Débora
+- Isabela
+
+Para cada cliente:
+1. Informar nome e dados básicos
+2. Criar login de acesso
+3. Salvar cadastro
+
+**Checklist**
+- [ ] Luca cadastrado
+- [ ] Débora cadastrada
+- [ ] Isabela cadastrada
+
+---
+
+## Etapa 4 — Associação de clientes aos planos
+1. Abrir cadastro do cliente
+2. Vincular o **plano de internet**
+3. Salvar alterações
+
+> Importante: após associar o plano, pode ser necessário **desconectar e reconectar o PPPoE** para aplicar corretamente.
+
+**Checklist**
+- [ ] Cliente vinculado ao plano correto
+- [ ] Alterações salvas com sucesso
+
+---
+
+## Etapa 5 — Ajustes de autenticação (integração com o MikroTik)
+Durante os testes, foi identificado que:
+- Alguns parâmetros não estavam definidos no profile
+- Foi necessário revisar:
+  - Perfil do cliente
+  - Pool de IP
+  - Associação correta do plano
+
+Ações realizadas:
+1. Revisar perfil do cliente no sistema
+2. Garantir que o cliente herda os parâmetros do profile
+3. Derrubar e subir a sessão PPPoE novamente
+
+**Checklist**
+- [ ] Cliente autentica corretamente
+- [ ] Sessão aparece ativa no MikroTik
+- [ ] Cliente navega após reconexão
+
+---
+
+## Etapa 6 — Testes de velocidade
+1. Executar teste de velocidade nos clientes
+2. Observar:
+   - Velocidade entregue
+   - Latência
+   - Estabilidade
+
+Observações do laboratório:
+- Velocidade abaixo do esperado em alguns testes
+- Testes diretos (sem switch intermediário) apresentaram melhor desempenho
+- Limitação pode estar relacionada à VM ou ao ambiente GNS3
+
+**Checklist**
+- [ ] Cliente navega
+- [ ] Teste de velocidade executado
+- [ ] Gargalos identificados
+
+---
+
+## Etapa 7 — Estrutura financeira (contas e boletos)
+1. Criar **conta financeira do provedor**
+   - Tipo: Boleto próprio do provedor
+   - Dados básicos da empresa (teste)
+2. Associar conta aos clientes
+3. Gerar cobranças manualmente
+
+Ações realizadas:
+- Criação de conta financeira
+- Geração de cobrança para clientes
+- Registro de pagamento manual (dinheiro/teste)
+
+**Checklist**
+- [ ] Conta financeira criada
+- [ ] Cliente com cobrança gerada
+- [ ] Registro financeiro funcionando
+
+---
+
+## Etapa 8 — Validação final
+Verificar no dashboard:
+- Total de clientes
+- Clientes online
+- Clientes com cobrança
+- Status geral do sistema
+
+**Resultado esperado**
+- Clientes conectados via PPPoE
+- Planos atribuídos
+- Sistema de gestão refletindo o estado real da rede
+
+---
+
+## Problemas encontrados (lições da aula)
+- Parâmetros ausentes em profiles causam falha de autenticação
+- Mudanças exigem reconexão do cliente
+- Testes de velocidade em laboratório virtual sofrem limitações
+- Financeiro exige configuração completa antes de automatizar
+
+---
+
+## Definição de pronto — Aula 02
+- [ ] Clientes autenticando via sistema
+- [ ] Planos criados e vinculados
+- [ ] Testes de velocidade executados
+- [ ] Cobrança gerada no sistema
+- [ ] Dashboard refletindo clientes online
+
+---
+
+## Próxima aula (Aula 03 — sugestão)
+- Limitação real de banda (queues / profiles)
+- Integração Radius (MK-AUTH)
+- Automação total: cliente conecta → plano aplica → cobrança gera
+
